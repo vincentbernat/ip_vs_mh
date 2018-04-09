@@ -1,3 +1,6 @@
+⚠️ This is not a drop-in replacement for `ip_vs_mh` as it appears in
+Linux 4.18. See below.
+
 # Consistent source hashing scheduler for Linux IPVS
 
 This module is a backport of `ip_vs_mh` which will be integrated in
