@@ -36,6 +36,12 @@ connection when a server becomes overloaded (with thresholds, at the
 cost of adding local state). If there is really a use for this, I
 could add back the fallback option.
 
+For compatibility with the module in Linux 4.18, I would encourage you
+to not use real servers with a weight of 0 since the behaviour is
+different. Instead, remove the server from the list of servers when it
+is unavailable. To add it back to the same position, it is possible to
+send back the complete list of servers.
+
 ## Compilation
 
 This is an out-of-tree module. Just type `make` and you should get an
