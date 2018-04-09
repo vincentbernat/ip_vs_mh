@@ -43,6 +43,8 @@ is unavailable. To add it back to the same position, it is possible to
 send back the complete list of servers. Alternatively, you can
 continue to use this backport: it works with Linux 4.18+ too.
 
+[1]: https://research.google.com/pubs/pub44824.html
+
 ## Compilation
 
 This is an out-of-tree module. Just type `make` and you should get an
