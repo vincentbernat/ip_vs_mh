@@ -40,7 +40,8 @@ For compatibility with the module in Linux 4.18, I would encourage you
 to not use real servers with a weight of 0 since the behaviour is
 different. Instead, remove the server from the list of servers when it
 is unavailable. To add it back to the same position, it is possible to
-send back the complete list of servers.
+send back the complete list of servers. Alternatively, you can
+continue to use this backport: it works with Linux 4.18+ too.
 
 ## Compilation
 
