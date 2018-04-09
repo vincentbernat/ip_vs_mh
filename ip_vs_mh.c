@@ -32,9 +32,6 @@ https://www.usenix.org/system/files/conference/nsdi16/nsdi16-paper-eisenbud.pdf
 #include <linux/bitops.h>
 #include <linux/gcd.h>
 
-#define IP_VS_SVC_F_SCHED_MH_FALLBACK	IP_VS_SVC_F_SCHED1 /* MH fallback */
-#define IP_VS_SVC_F_SCHED_MH_PORT	IP_VS_SVC_F_SCHED2 /* MH use port */
-
 struct ip_vs_mh_lookup {
 	struct ip_vs_dest __rcu	*dest;	/* real server (cache) */
 };
@@ -125,10 +122,10 @@ static int ip_vs_mh_permutate(struct ip_vs_mh_state *s,
 	struct list_head *p;
 	struct ip_vs_mh_dest_setup *ds;
 	struct ip_vs_dest *dest;
-	int lw;
+	int w;
 
 	/* If gcd is smaller then 1, number of dests or
-	 * all last_weight of dests are zero. So, skip
+	 * all weight of dests are zero. So, skip
 	 * permutation for the dests.
 	 */
 	if (s->gcd < 1)
@@ -148,8 +145,8 @@ static int ip_vs_mh_permutate(struct ip_vs_mh_state *s,
 					    (IP_VS_MH_TAB_SIZE - 1) + 1;
 		ds->perm = ds->offset;
 
-		lw = atomic_read(&dest->last_weight);
-		ds->turns = ((lw / s->gcd) >> s->rshift) ? : (lw != 0);
+		w = atomic_read(&dest->weight);
+		ds->turns = ((w / s->gcd) >> s->rshift) ? : (w != 0);
 		ds++;
 	}
 
@@ -166,7 +163,7 @@ static int ip_vs_mh_populate(struct ip_vs_mh_state *s,
 	struct ip_vs_dest *dest, *new_dest;
 
 	/* If gcd is smaller then 1, number of dests or
-	 * all last_weight of dests are zero. So, skip
+	 * all weight of dests are zero. So, skip
 	 * the population for the dests and reset lookup table.
 	 */
 	if (s->gcd < 1) {
@@ -243,48 +240,6 @@ ip_vs_mh_get(struct ip_vs_service *svc, struct ip_vs_mh_state *s,
 	return (!dest || is_unavailable(dest)) ? NULL : dest;
 }
 
-/* As ip_vs_mh_get, but with fallback if selected server is unavailable */
-static inline struct ip_vs_dest *
-ip_vs_mh_get_fallback(struct ip_vs_service *svc, struct ip_vs_mh_state *s,
-		      const union nf_inet_addr *addr, __be16 port)
-{
-	unsigned int offset, roffset;
-	unsigned int hash, ihash;
-	struct ip_vs_dest *dest;
-
-	/* First try the dest it's supposed to go to */
-	ihash = ip_vs_mh_hashkey(svc->af, addr, port,
-				 &s->hash1, 0) % IP_VS_MH_TAB_SIZE;
-	dest = rcu_dereference(s->lookup[ihash].dest);
-	if (!dest)
-		return NULL;
-	if (!is_unavailable(dest))
-		return dest;
-
-	IP_VS_DBG_BUF(6, "MH: selected unavailable server %s:%u, reselecting",
-		      IP_VS_DBG_ADDR(dest->af, &dest->addr), ntohs(dest->port));
-
-	/* If the original dest is unavailable, loop around the table
-	 * starting from ihash to find a new dest
-	 */
-	for (offset = 0; offset < IP_VS_MH_TAB_SIZE; offset++) {
-		roffset = (offset + ihash) % IP_VS_MH_TAB_SIZE;
-		hash = ip_vs_mh_hashkey(svc->af, addr, port, &s->hash1,
-					roffset) % IP_VS_MH_TAB_SIZE;
-		dest = rcu_dereference(s->lookup[hash].dest);
-		if (!dest)
-			break;
-		if (!is_unavailable(dest))
-			return dest;
-		IP_VS_DBG_BUF(6,
-			      "MH: selected unavailable server %s:%u (offset %u), reselecting",
-			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
-			      ntohs(dest->port), roffset);
-	}
-
-	return NULL;
-}
-
 /* Assign all the hash buckets of the specified table with the service. */
 static int ip_vs_mh_reassign(struct ip_vs_mh_state *s,
 			     struct ip_vs_service *svc)
@@ -327,7 +282,7 @@ static int ip_vs_mh_gcd_weight(struct ip_vs_service *svc)
 	int g = 0;
 
 	list_for_each_entry(dest, &svc->destinations, n_list) {
-		weight = atomic_read(&dest->last_weight);
+		weight = atomic_read(&dest->weight);
 		if (weight > 0) {
 			if (g > 0)
 				g = gcd(weight, g);
@@ -348,14 +303,14 @@ static int ip_vs_mh_shift_weight(struct ip_vs_service *svc, int gcd)
 	int mw, shift;
 
 	/* If gcd is smaller then 1, number of dests or
-	 * all last_weight of dests are zero. So, return
+	 * all weight of dests are zero. So, return
 	 * shift value as zero.
 	 */
 	if (gcd < 1)
 		return 0;
 
 	list_for_each_entry(dest, &svc->destinations, n_list) {
-		new_weight = atomic_read(&dest->last_weight);
+		new_weight = atomic_read(&dest->weight);
 		if (new_weight > weight)
 			weight = new_weight;
 	}
@@ -484,16 +439,11 @@ ip_vs_mh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 
 	IP_VS_DBG(6, "%s : Scheduling...\n", __func__);
 
-	if (svc->flags & IP_VS_SVC_F_SCHED_MH_PORT)
-		port = ip_vs_mh_get_port(skb, iph);
+	port = ip_vs_mh_get_port(skb, iph);
 
 	s = (struct ip_vs_mh_state *)svc->sched_data;
 
-	if (svc->flags & IP_VS_SVC_F_SCHED_MH_FALLBACK)
-		dest = ip_vs_mh_get_fallback(svc, s, hash_addr, port);
-	else
-		dest = ip_vs_mh_get(svc, s, hash_addr, port);
-
+	dest = ip_vs_mh_get(svc, s, hash_addr, port);
 	if (!dest) {
 		ip_vs_scheduler_err(svc, "no destination available");
 		return NULL;
