@@ -1,0 +1,10 @@
+Source: ipvs-mh-dkms
+Section: kernel
+Priority: optional
+Maintainer: Vincent Bernat <bernat@debian.org>
+Build-Depends: debhelper (>= 9), dkms
+
+Package: ipvs-mh-dkms
+Architecture: all
+Depends: ${misc:Depends}
+Description: DKMS source for IPVS Maglev scheduler
