@@ -24,17 +24,16 @@ in Linux 4.18:
 
  3. Ability to fallback to another backend has been removed.
 
-About the two last items, in my opinion, the ability to fallback to
-another server when ones becomes unavailable without recomputing the
-hash table (something that can be achieved with the original module by
-enabling the fallback option and setting the weight of unavailable
-servers to 0 or using thresholds) is useless: you get exactly the same
-thing by recomputing the hash table. A weight of 0 is still useful to
-keep a server position in the list of real servers (when it becomes
-available again). However, you loose the ability to reschedule a
-connection when a server becomes overloaded (with thresholds, at the
-cost of adding local state). If there is really a use for this, I
-could add back the fallback option.
+About the two last items, in my opinion, use of fallback is not
+described in the Maglev paper and is an hybrid approach mixing the
+"classic" way of doing consistent hashing. This is not needed here as
+the original algorithm ensure the relative stability of the existing
+positions in the lookup table when removing a server. Using a weight
+of 0 is still useful to avoid updating the whole list while keeping
+positions intact. However, ability to reschedule a connection when a
+server becomes overloaded (with thresholds, at the cost of adding
+local state) is lost. If there is really a use for this, I could add
+back the fallback option.
 
 For compatibility with the module in Linux 4.18, I would encourage you
 to not use real servers with a weight of 0 since the behaviour is
