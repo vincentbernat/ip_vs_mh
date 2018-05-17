@@ -13,6 +13,10 @@ occurs. This helps in case of active/active setup without
 synchronization. Like for classic source hashing, this lookup table is
 used to assign connections to a real server.
 
+[1]: https://research.google.com/pubs/pub44824.html
+
+## Differences with the upstream module
+
 There are several differences with the real `ip_vs_mh` to be included
 in Linux 4.18:
 
@@ -41,8 +45,6 @@ different. Instead, remove the server from the list of servers when it
 is unavailable. To add it back to the same position, it is possible to
 send back the complete list of servers. Alternatively, you can
 continue to use this backport: it works with Linux 4.18+ too.
-
-[1]: https://research.google.com/pubs/pub44824.html
 
 ## Compilation
 
