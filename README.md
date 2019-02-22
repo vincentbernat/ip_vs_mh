@@ -58,3 +58,5 @@ There is no option to this scheduler. You can use it by its name:
     ipvsadm -a -t 203.0.113.15:80 -r 10.234.79.11:80 -m
     ipvsadm -a -t 203.0.113.15:80 -r 10.234.79.12:80 -m
     ipvsadm -a -t 203.0.113.15:80 -r 10.234.79.13:80 -m -w 2
+
+This module currently requires at least Linux 4.11.
